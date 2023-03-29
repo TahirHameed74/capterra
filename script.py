@@ -6,7 +6,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
-import requests
 import re
 import os
 from operator import itemgetter
@@ -14,15 +13,20 @@ import json
 import time
 import csv
 from fake_useragent import UserAgent
+import pandas as pd
 
 _url = "https://www.capterra.com/"
 ua = UserAgent()
 chrome_options = Options()
 
 chrome_options.add_argument("--incognito")
-
+# chrome_options.add_argument("--headless") 
 
 def get_results(link):
+    #copy paste the chrome driver url here
+    #there are two more lines of code where you will have to do the same  i will mention the line numbers here so that it easier for you
+    #to locate the coode. Line number 185,205
+
     driver = webdriver.Chrome(chrome_options=chrome_options)
 
     driver.get(url=_url + link)
@@ -51,7 +55,10 @@ def get_results(link):
         companyName = "undefined"
     # Overall Rating
 
-    pageContent = soup.find("div", {"class": "gtm-page-content"})
+    try:
+        pageContent = soup.find("div", {"class": "gtm-page-content"})
+    except Exception as e:
+        print(e)
 
     try:
 
@@ -78,8 +85,12 @@ def get_results(link):
 
     # Product Price
 
-    productPricing = pageContent.find("div", {"id": "LoadableProductPricingSection"})
-    productPricing = productPricing.find("div", {"class": "nb-mb-2xs"})
+    try:
+        productPricing = pageContent.find("div", {"id": "LoadableProductPricingSection"})
+        productPricing = productPricing.find("div", {"class": "nb-mb-2xs"})
+
+    except Exception as e:
+        print(e)
     try:
 
         startFrom = productPricing.find("span", {
@@ -172,7 +183,7 @@ def get_results(link):
 
 def getCategoryLinks():
     links = []
-    driver = webdriver.Chrome(executable_path="/Users/apple/PycharmProjects/shanzay/chromedriver", chrome_options=chrome_options)
+    driver = webdriver.Chrome(chrome_options=chrome_options)
     driver.get("https://www.capterra.com/categories")
     wait = WebDriverWait(driver, 20)
     time.sleep(10)
@@ -192,8 +203,8 @@ def getCategoryLinks():
 
 def getSoftwareLinks(link):
     links = []
-    driver = webdriver.Chrome(executable_path="/Users/apple/PycharmProjects/shanzay/chromedriver", chrome_options=chrome_options)
-    softwareUrls = "https://www.capterra.com/" + link + "/?beta_DD76=on"
+    driver = webdriver.Chrome(chrome_options=chrome_options)
+    softwareUrls = "https://www.capterra.com/" + link + "?beta_DD76=on"
     driver.get(softwareUrls)
     wait = WebDriverWait(driver, 20)
     time.sleep(20)
@@ -202,8 +213,12 @@ def getSoftwareLinks(link):
         "class": "nb-row-start-1 nb-row-span-1 nb-px-0 lg:nb-w-auto lg:nb-pt-md xs:nb-pt-xs nb-col-start-2 nb-col-end-3"})
     # nb-flex nb-flex-col nb-h-full nb-border-solid nb-border-t-1 nb-border-r-1 nb-border-l-1 nb-border-b-0 nb-border-secondary-200 nb-bg-white nb-p-xs nb-pb-md md:nb-p-xl
 
+
+    #nb-flex nb-flex-col nb-w-full nb-pt-md
     for i in soup.find_all("div", {"class": "nb-block nb-w-100"}):
-        links.append(str(i.find("a")['href']))
+
+        temp = i.find("div",{"class","nb-flex nb-flex-col nb-w-full nb-pt-md"})
+        links.append(str(temp.find("a")['href']))
     res = []
     for i in links:
         if i not in res:
@@ -214,27 +229,72 @@ def getSoftwareLinks(link):
 
 
 if __name__ == '__main__':
-    with open('combined_file.csv', 'w', newline='') as outcsv:
-        writer = csv.writer(outcsv)
-        writer.writerow(
-            ["Category Name", "Company Name", "Overall Rating", "Product Description", " Price", "Deployment Categoies",
-             " Address", "FoundedDate", "Url Company", " Product Features"])
-        categoryLinks = []
-        categoryLinks = getCategoryLinks()
-        i = 0
-        while i < len(categoryLinks):
-            temp = getSoftwareLinks(categoryLinks[i])
-            i = i + 1
-            DeploymentCategoies = []
-            productFeatures = []
-            categoryName, companyName, overallRating, productDescription, productPriceListing, DeploymentCategoies, address, foundedDate, urlCompany, productFeatures = get_results(
-                temp[0])
-            # writer = csv.writer(outcsv)
-            writer.writerow(
-                [categoryName, companyName, overallRating, productDescription, productPriceListing, DeploymentCategoies,
-                 address, foundedDate, urlCompany, productFeatures])
-            print(productFeatures)
-            print(companyName)
+    # catLinks = []
+    # softLinks = []
+    # catLinks = getCategoryLinks()
+
+
+    val = input("Enter your Category Name: ")
+
+    val = val.lower()
+
+    val = val.replace(" ", "-")
+
+
+    print(val)
+
+
+
+    # print(catLinks)
+
+    # #https://www.capterra.com/360-degree-feedback-software/?beta_DD76=on
+
+
+    # # print(categoryLinks)
+
+    # # print(categoryLinks)
+    softLinks = []
+    # i = 0
+    j = 0
+
+    # print(catLinks[0])
+
+    # print(getSoftwareLinks(catLinks[i]))
+
+
+
+    headerList = ['Category', 'Company Name', 'Overall Rating', 'Product Description', 'Price', 'Deployment Categories', 'Address', 'Founded Date' , 'URL' , 'Features']
+
+    # while i < len(catLinks):
+
+    softwareLinks = getSoftwareLinks(val)
+
+    #     print(catLinks[0])
+
+        # print(softwareLinks)
+    DeploymentCategoies = []
+    productFeatures = []
+
+    while j < len(softwareLinks):
+        categoryName, companyName, overallRating, productDescription, productPriceListing, DeploymentCategoies, address, foundedDate, urlCompany, productFeatures = get_results(softwareLinks[j])
+        print("\n")
+        print("SOFTWARE LINKS ARE \n")
+        print(softwareLinks[j])
+
+        file = pd.DataFrame([[categoryName, companyName, 
+            overallRating, productDescription, productPriceListing, DeploymentCategoies, address, foundedDate, urlCompany, productFeatures]])
+        file.to_csv('data.csv', mode='a', header=False)
+
+        # print(categoryName, companyName, overallRating, productDescription, productPriceListing, DeploymentCategoies, address, foundedDate, urlCompany, productFeatures)
+
+        j = j + 1
+
+
+    j = 0
+
+        # i = i + 1
+        # print(productFeatures)
+        # print(companyName)
 
 
 
